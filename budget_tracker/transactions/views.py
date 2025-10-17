@@ -1,9 +1,11 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from django.http import HttpResponse
 from rest_framework.permissions import IsAuthenticated
 from .models import Transaction, Category
 from .serializers import TransactionSerializer, CategorySerializer 
+import csv
 
 class TransactionListCreateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -67,3 +69,16 @@ class CategoryListCreateView(APIView):
             serializer.save(user=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class TransactionExportView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="transactions.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['ID', 'Date', 'Amount', 'Type', 'Category', 'Description'])
+        transactions = Transaction.objects.filter(user=request.user)
+        for t in transactions:
+            writer.writerow([t.id, t.date, t.amount, t.type, t.category.name, t.description])
+        return response
